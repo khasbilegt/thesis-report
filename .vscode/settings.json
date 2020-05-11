@@ -9,6 +9,7 @@
 	"editor.defaultFormatter": "James-Yu.latex-workshop",
 	"telemetry.enableCrashReporter": false,
 	"telemetry.enableTelemetry": false,
+	"latex-workshop.message.badbox.show": false,
 	"files.exclude": {
 		"**/.git": true,
 		"**/.svn": true,

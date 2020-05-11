@@ -5,12 +5,27 @@
 % !TEX encoding = UTF-8 Unicode
 \documentclass[12pt,a4paper]{report}
 
-\usepackage{fontspec,xltxtra,xunicode}
-\setmainfont[Ligatures=TeX]{Times New Roman}
+% \usepackage{fontspec,xltxtra,xunicode}
+% \usepackage{fontspec}
+% \setmainfont{Times New Roman}
+% \setsansfont{Arial}
+
+% \usepackage[T2A]{fontenc}
+% \usepackage[utf8]{inputenc}
+% \usepackage[english, mongolian]{babel}
+
+\usepackage{polyglossia}
+\setmainlanguage{mongolian}
+\setotherlanguage{english}
+\setmainfont{Times New Roman}
 \setsansfont{Arial}
+\setromanfont{Times New Roman} 
+\newfontfamily{\cyrillicfont}{Times New Roman}[Ligatures=TeX]
+\newfontfamily{\cyrillicfontrm}{Times New Roman}
+\newfontfamily{\cyrillicfonttt}{Courier New}
+\newfontfamily{\cyrillicfontsf}{Arial}
+\setkeys{mongolian}{babelshorthands=true}
 
-
-\usepackage[mongolian, english]{babel}
 %\usepackage{natbib}
 \usepackage{geometry}
 %\usepackage{fancyheadings} fancyheadings is obsolete: replaced by fancyhdr. JL
@@ -27,6 +42,7 @@
 \newcommand{\argmin}{\arg\!\min}
 \usepackage{mathtools}
 \usepackage[hidelinks, unicode]{hyperref}
+\pdfstringdefDisableCommands{\let\uppercase\relax}
 
 \usepackage{algorithm}
 \usepackage{algpseudocode}
@@ -34,13 +50,15 @@
 \usepackage{listings}
 \DeclarePairedDelimiter\abs{\lvert}{\rvert}%
 \makeatletter
-\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[justification={centering}]{caption}
 \captionsetup[table]{belowskip=0.5pt}
 \usepackage{subfiles}
-
+\usepackage[bottom]{footmisc}
 \usepackage{listings}
 \renewcommand{\lstlistingname}{Код}
 \renewcommand{\lstlistlistingname}{\lstlistingname ын жагсаалт}
+\usepackage[final]{pdfpages}
 
 \usepackage{color}
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -56,15 +74,15 @@
     numberstyle=\tiny\color{codegray},
     stringstyle=\color{codepurple},
     %basicstyle=\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=false,                 
-    numbers=left,                    
-    numbersep=10pt,                  
-    showspaces=false,                
-    showstringspaces=true,
-    showtabs=false,                  
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=false,
+    numbers=left,
+    numbersep=10pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
     tabsize=2
 }
  

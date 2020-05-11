@@ -1,201 +1,184 @@
 \appendix
 \addcontentsline{toc}{part}{ХАВСРАЛТ}
 
-\chapter{Сэрээх үг илрүүлэгч}
-\label{appendix:wake-word-listener}
+\chapter{Ирмэг илрүүлэгч}
+\label{appendix:get_edges}
 
 \begin{lstlisting}[language=Python]
-from precise_runner import PreciseEngine, PreciseRunner
-import time
-from pixel_ring import pixel_ring # ReSpeaker led controller
-import mraa
-import os
-
-# Төхөөрөмжийн төлөв илэрхийлэх гэрэл (pixel ring)
-en = mraa.Gpio(12)
-if os.getuid() != 0:
-    time.sleep(1)
-en.dir(mraa.DIR_OUT)
-en.write(0)
-pixel_ring.set_brightness(20)
-
-# Сэрээх\ үг\ илрэхэд\ гүйцэтгэх\ функц
-def on_activation():
-    print('hello')
-    pixel_ring.wakeup() # Төхөөрөмжийн\ гэрлээр\ сэрсэн\ төлөвөө\ илэрхийлнэ
-    # ...
-    # дуу\ бичих,\ яриа\ таних\ серверт\ илгээх\ гэх\ мэт\ кодууд...
-    # ...
-    time.sleep(3)
-    pixel_ring.off()
-
-def main():
-    # Сэрээх\ үг\ илрүүлэгчийг\ эхлүүлэх
-    engine = PreciseEngine('precise-engine/precise-engine', 'hey-obi.pb') # hey-obi.pb\ нь\ сургасан\ модель
-    runner = PreciseRunner(engine, on_activation=on_activation)
-    runner.start()
-
-if __name__ == '__main__':
-    main()
-    while True:
-        time.sleep(1)
+@classmethod
+def get_edges(cls, source):
+		# _THRESHOLD_MIN: 100, _THRESHOLD_MAX: 200
+		return cv.Canny(source, cls._THRESHOLD_MIN, cls._THRESHOLD_MAX) 
 \end{lstlisting}
 
-\chapter{Kaldi GStreamer серверт зориулсан тохиргооны файл}
-\label{appendix:kaldi-gstreamer-yaml}
-
-\begin{lstlisting}
-timeout-decoder : 10
-decoder:
-    model: /opt/models/tri3b/final.mdl
-    lda-mat: /opt/models/tri3b/final.mat
-    word-syms: /opt/models/tri3b/graph/words.txt
-    fst: /opt/models/tri3b/graph/HCLG.fst
-    silence-phones: "1:2:3:4:5"
-    left-context: 3
-    right-context: 3
-out-dir: tmp
-
-use-vad: False
-silence-timeout: 5
-
-...
-\end{lstlisting}
-
-\chapter{Яриа таних хэсэг}
-\label{appendix:stt}
+\chapter{Хүснэгт илрүүрэгч}
+\label{appendix:get_container}
 
 \begin{lstlisting}[language=Python]
-def stt():
-    audio_file = '.tmp/stt.flac'
-    text = False
-    # Дууг\ бичиж\ авна
-    subprocess.run(['rec', '-c', '1', '-r', '16000', '-d', audio_file,
-                    'trim', '0', '15', 'silence', '1', '0.1', '0.3%', '1', '3.0', '0.3%'])
-    # Curl\ хэрэгслийг\ ашиглан\ HTTP хүсэлт\ явуулна
-    output = str(subprocess.check_output(
-        "curl -T {} {}".format(audio_file, conf.config()['STT_URL']), shell=True), 'utf-8')
-    print(output)
-    if output == 'No workers available':
-        return False
-    response = json.loads(output)
-    print(response)
-    # Хэрэв\ төлөв\ нь\ тэгтэй\ тэнцүү\ бол\ амжилттай\ гэж\ үзээд\ бичвэрийг\ буцаана
-    if response['status'] == 0:
-        text = response['hypotheses'][0]['utterance']
-    return text
+@classmethod
+def get_form_container(cls, source):
+		contours, _ = cv.findContours(
+				cls.get_edges(source),
+				cv.RETR_EXTERNAL,
+				cv.CHAIN_APPROX_SIMPLE,
+		)
+		biggest_contour = sorted(
+				contours,
+				key=lambda contour: cv.arcLength(contour, True),
+				reverse=True,
+		)[0]
+		x, y, w, h = cv.boundingRect(biggest_contour)
+		bounding_rect_points = rectangle2points(x, y, w, h)
+		approx_curve = cv.approxPolyDP(
+				biggest_contour,
+				0.01 * cv.arcLength(biggest_contour, True),
+				True,
+		)
+
+		if len(approx_curve) >= 4:
+				points = tuple(
+						(
+								point[0][0] + point[0][1],
+								point[0][0] - point[0][1],
+								(point[0][0], point[0][1]),
+						)
+						for point in approx_curve
+				)
+				sum_sorted_points = sorted(
+						points, key=lambda point: point[0]
+				)
+				diff_sorted_points = sorted(
+						points, key=lambda point: point[1]
+				)
+
+				extreme_points = (
+						sum_sorted_points[0][-1],
+						diff_sorted_points[-1][-1],
+						diff_sorted_points[0][-1],
+						sum_sorted_points[-1][-1],
+				)
+
+				homog, _ = cv.findHomography(
+						np.array(extreme_points),
+						np.array(bounding_rect_points),
+				)
+				transformed = cv.warpPerspective(
+						source,
+						homog,
+						(int(source.shape[1]), int(source.shape[0])),
+				)
+				new_x, new_y, new_w, new_h = cls.compensate(
+						x, y, w, h, offset=5
+				)
+				return transformed[
+						new_y : new_y + new_h, new_x : new_x + new_w
+				]
+		return None
 \end{lstlisting}
 
-\chapter{Чадвар сонгох}
-\label{appendix:skill}
+\chapter{Тэмдэгтүүдийг салгах}
+\label{appendix:get_chars}
 
 \begin{lstlisting}[language=Python]
-result = {'obj': None, 'answer': ''}
-if intent['intent']['confidence'] > 0.5:
-    # intent тохирох\ үйлдлийг\ сонгоно
-    # Мэндчилээ
-    if intent['intent']['name'] == 'greeting':
-        result['answer'] = greeting.greet()
-    # Цаг
-    elif intent['intent']['name'] == 'get_time':
-        result['answer'] = time_n_date.get_time()
-    # Огноо
-    elif intent['intent']['name'] == 'get_date':
-        result['answer'] = time_n_date.get_date()
-    # Долоо\ хоногийн\ хэд\ дэх\ өдөр
-    elif intent['intent']['name'] == 'get_day':
-        result['answer'] = time_n_date.get_day()
-    # Цаг\ агаар
-    elif intent['intent']['name'] == 'get_weather':
-        p = {}
-        # entity байвал\ хотын\ нэр\ болон\ огноог\ авч\ функц\ руу\ дамжуулна
-        for entity in intent['entities']:
-            p[entity['entity']] = entity['value']
-        result['answer'] = weather.get_weather(**p)
-    # Валютын\ ханш
-    elif intent['intent']['name'] == 'get_currency':
-        if len(intent['entities']) > 0:
-            result['answer'] = currency.get_currency(
-                intent['entities'][0]['value'])
-        else:
-            result['answer'] = currency.get_currency()
-    # Захиалга
-    elif intent['intent']['name'] == 'order':
-        if len(intent['entities']) > 0:
-            result['obj'] = order.Order(intent['entities'][0]['value'])
-        else:
-            result['obj'] = order.Order()
-        result['answer'] = 'ямар хэмжээтэй {} захиалах вэ'.format(
-            result['obj']._name)
-    elif intent['intent']['name'] == 'order_size':
-        if len(intent['entities']) > 0:
-            result['obj'] = obj.set_size(intent['entities'][0]['value'])
-        else:
-            result['obj'] = obj.set_size()
-        result['answer'] = 'хэдэн ширхэгийг захиалах вэ'
-    elif intent['intent']['name'] == 'order_quantity':
-        if len(intent['entities']) > 0:
-            obj.set_quantity(intent['entities'][0]['value'])
-        else:
-            obj.set_quantity()
-        result['answer'] = obj.order()
-else:
-    result = False
-# Хэрэв\ ямар\ ч\ үйлдэл\ сонгож\ чадаагүй\ бол\ амжилтгүй\ хариу\ буцаана
-if result == False:
-    result = {'answer': DO_NOT_KNOW[math.floor(
-        random.random() * len(DO_NOT_KNOW))], 'obj': obj}
-return result
+@classmethod
+def get_characters(cls, form, label_seq: str, skip_char: str):
+		h, w, _ = form.shape
+		height = (h + (10 - int(str(h)[-1]))) // 10
+		width = (w + (10 - int(str(w)[-1]))) // 10
+		label_height = height - width
+		character_seq = [
+				form[
+						row * height + label_height : row * height + height,
+						col * width : col * width + width,
+				]
+				for row in range(10)
+				for col in range(10)
+		]
+
+		return tuple(
+				(label, letter)
+				for label, letter in zip(label_seq, character_seq)
+				if label != skip_char
+		)
 \end{lstlisting}
 
-\chapter{Цаг, огнооны мэдээлэл авах}
-\label{appendix:skill-datetime}
+\chapter{Тэмдэгт боловсруулах}
+\label{appendix:get_char}
 
 \begin{lstlisting}[language=Python]
-from datetime import date, datetime
+@classmethod
+def get_char(cls, label, source):
+		binary = cls.get_threshold(
+				cls.get_blurred_img(cls.get_gray_img(source)),
+				cv.THRESH_BINARY_INV,
+		)
+		contours, _ = cv.findContours(
+				binary, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE
+		)
+		sorted_contours = sorted(
+				contours,
+				key=lambda ctr: cv.contourArea(ctr),
+				reverse=True,
+		)
+		point_x = []
+		point_y = []
+		for x, y, w, h in (
+				cv.boundingRect(ctr) for ctr in sorted_contours
+		):
+				point_x.append(x)
+				point_x.append(x + w)
+				point_y.append(y + h)
+				point_y.append(y)
 
-WEEKDAY_NAMES = ['Даваа', 'Мягмар', 'Лхагва', 'Пүрэв', 'Баасан', 'Бямба', 'Ням']
+		points = list(zip(sorted(point_x), sorted(point_y)))
 
-def get_time():
-    now = datetime.now()
-    hour = now.hour
-    minute = now.minute
-    return str(hour) + ' цаг ' + str(minute) + ' минут болж байна'
+		if not points:
+				return
 
-def get_day():
-    today = date.today()
-    day = WEEKDAY_NAMES[today.weekday()]
-    return 'Өнөөдөр ' + day + ' гараг'
+		max_col = points[-1][0]
+		max_row = points[-1][1]
+		min_col = points[0][0]
+		min_row = points[0][1]
 
-def get_date():
-    today = date.today()
-    month = today.month
-    day = today.day
-    return 'Өнөөдөр ' + str(month) + ' сарын ' + str(day) + '-ны өдөр'
+		w_a = max_col - min_col
+		h_a = max_row - min_row
+
+		if w_a > h_a:
+				diff_x = 0
+				diff_y = (w_a - h_a) // 2
+		elif w_a < h_a:
+				diff_x = (h_a - w_a) // 2
+				diff_y = 0
+		else:
+				diff_x = 0
+				diff_y = 0
+
+		diff_x += cls._BORDER_THICKNESS
+		diff_y += cls._BORDER_THICKNESS
+
+		cropped = binary[min_row:max_row, min_col:max_col]
+		cropped = cv.copyMakeBorder(
+				cropped,
+				diff_y,
+				diff_y,
+				diff_x,
+				diff_x,
+				borderType=cv.BORDER_CONSTANT,
+				value=[0, 0, 0],
+		)
+
+		if cropped.size != 0:
+				resized = cv.resize(
+						cropped, cls._SIZE, interpolation=cv.INTER_AREA
+				)
+				_, final = cls.get_threshold(
+						resized, cv.THRESH_BINARY + cv.THRESH_OTSU, 
+						adaptive=False
+				)
+				return final
+		return
 \end{lstlisting}
 
-\chapter{Яриа үүсгүүр}
-\label{appendix:tts}
-\begin{lstlisting}[language=Python]
-# Яриа\ үүсгүүрээс\ аудио\ файлыг\ авах
-def get_wav(sentence=''):
-    url = config()['TTS_URL'] + str(sentence)
-    r = requests.get(url)
-    with open('.tmp/tts.wav', 'wb') as f:
-        f.write(r.content)
-    return './.tmp/tts.wav'
-
-# Аудио\ файл\ тоглуулах
-def play_wav(location='.tmp/tts.wav'):
-    chunk = 1024
-    f = wave.open(location, "rb")
-    p = pyaudio.PyAudio()
-    stream = p.open(format=p.get_format_from_width(f.getsampwidth()), channels=f.getnchannels(), rate=f.getframerate(), output=True)
-    data = f.readframes(chunk)
-    while data:
-        stream.write(data)
-        data = f.readframes(chunk)
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-    \end{lstlisting}
+\newpage
+\pagenumbering{gobble}
+\includepdf[pages=-,pagecommand={},width=\textwidth]{schedule.pdf}
