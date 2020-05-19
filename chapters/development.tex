@@ -22,7 +22,7 @@ John F. Canny -н ирмэг танилтын арга нь өөрөө зург�
 	\item Hysteresis Thresholding --- Энэ хэсэг нь өмнөх шатны ирмэг гэж үзсэн цэгүүд дотор дахин хоёр утгаар зааглалт хийдэг. Өнгөний өөрчлөлттэй ирмэгийн цэгүүдийн утга дээд заагийн утгыг давж байвал баталгаатай ирмэг, доод заагийг давж чадахгүй цэгүүд ирмэг биш. Харин заагийн голд орших цэгүүд нь ямар нэг дээд зааг давсан цэгтэй холбоотой бол ирмэг, үгүй бол мөн ирмэг гэж тооцогдохгүй. Зураг \ref{fig:hysteresis}.
 \end{enumerate}
 
-\begin{figure}{ht}
+\begin{figure}[ht]
 	\centering
 	\includegraphics[width=0.6\linewidth]{images/hysteresis}
 	\caption{Hysteresis Thresholding - \url{https://docs.opencv.org/trunk/da/d22/tutorial_py_canny.html} -аас зургийг авав.}
@@ -70,18 +70,20 @@ biggest_contour = sorted(
 	\end{lstlisting}
 
 \begin{figure}[ht]
-	\centering
 	\begin{subfigure}{0.33\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/sheet_final_edges}
 		\caption{}
 		\label{fig:sheet_final_edges}
 	\end{subfigure}
 	\begin{subfigure}{0.33\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/sheet_final_contours}
 		\caption{}
 		\label{fig:sheet_final_contours}
 	\end{subfigure}
 	\begin{subfigure}{0.32\textwidth}
+		\centering
 		\includegraphics[width=0.85\linewidth]{images/sheet_final_transformed}
 		\caption{}
 		\label{fig:sheet_final_transformed}
@@ -137,23 +139,26 @@ labelSeq = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
 
 
 \begin{figure}[ht]
-	\centering
 	\begin{subfigure}{0.24\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/letter_a_binary}
 		\caption{63х63}
 		\label{fig:letter_a_binary}
 	\end{subfigure}
 	\begin{subfigure}{0.24\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/letter_a_cropped}
 		\caption{41х41}
 		\label{fig:letter_a_cropped}
 	\end{subfigure}
 	\begin{subfigure}{0.24\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/letter_a_resized}
 		\caption{28х28}
 		\label{fig:letter_a_resized}
 	\end{subfigure}
 	\begin{subfigure}{0.24\textwidth}
+		\centering
 		\includegraphics[width=0.9\linewidth]{images/letter_a_final}
 		\caption{28х28}
 		\label{fig:letter_a_final}

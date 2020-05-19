@@ -179,6 +179,19 @@ def get_char(cls, label, source):
 		return
 \end{lstlisting}
 
+\chapter{NUMiner --- Тохиргоог унших}
+\label{appendix:handle_config}
+
+\begin{lstlisting}[language=Python]
+def handle_config(arg):
+		import json
+		with open(arg) as config_file:
+				config = json.load(config_file)
+				Sheet._CHARACTER_SEQUENCE = tuple(config["labels"].items())
+
+		return Sheet._CHARACTER_SEQUENCE
+\end{lstlisting}
+
 \newpage
 \pagenumbering{gobble}
 \includepdf[pages=-,pagecommand={},width=\textwidth]{schedule.pdf}
